@@ -15,6 +15,7 @@ import torch.nn.functional as F
 
 from models import build_model
 from utils.registry import Registry
+from configs.config import batch_size
 
 from models.utils import smooth_mouth_movements, apply_frame_blending, apply_savitzky_golay_smoothing, \
     symmetrize_blendshapes, apply_random_eye_blinks_context, DEFAULT_CONTEXT, ARKitBlendShape
@@ -194,12 +195,16 @@ def _process_audio_inference(tmp_path: str, cfg, infer_engine) -> dict:
 
 
 def _process_text2audio_task(tts_model, text: str, language: str, ref_audio: str, ref_text: str):
-    sentences = text.replace("\n", "").split("。")
-    sentences = [s+'。' for s in sentences if s]
-        
-    languages = [language] * len(sentences)
-
     t_start = time.time()
+    times = []
+
+    sentences = text.replace("。", "。\n").split("\n")
+    sentences = [s.strip() for s in sentences if s]
+
+    task_id = str(uuid.uuid4())
+    base_dir = "./audio"
+    task_dir = os.path.join(base_dir, task_id)
+    os.makedirs(task_dir, exist_ok=True)
 
     prompt_items = tts_model.create_voice_clone_prompt(
         ref_audio=ref_audio,
@@ -207,25 +212,19 @@ def _process_text2audio_task(tts_model, text: str, language: str, ref_audio: str
         x_vector_only_mode=False,
     )
 
-    wavs, sr = tts_model.generate_voice_clone(
-        text=sentences,
-        language=languages,
-        voice_clone_prompt=prompt_items,
-    )
+    for i in range(len(sentences)):
+        wav, sr = tts_model.generate_voice_clone(
+            text=sentences[i],
+            language=language,
+            voice_clone_prompt=prompt_items,
+        )
+        file_path = os.path.join(task_dir, f"{i}.wav")
+        sf.write(file_path, wav[0], sr, format='WAV')
+        times.append(len(wav[0]) / sr)
 
     del prompt_items
     torch.cuda.empty_cache()
 
-    task_id = str(uuid.uuid4())
-    base_dir = "./audio"
-    task_dir = os.path.join(base_dir, task_id)
-    os.makedirs(task_dir, exist_ok=True)
-
-    for i, wav in enumerate(wavs):
-        file_path = os.path.join(task_dir, f"{i}.wav")
-        sf.write(file_path, wav, sr)
-
-    times = [len(wav) / sr for wav in wavs]
     print(f"{time.time() - t_start:.6f}")
     return sentences, times, task_id
 

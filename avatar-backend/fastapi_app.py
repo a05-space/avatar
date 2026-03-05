@@ -147,7 +147,35 @@ async def llm2text(request: LLMRequest):
 
 @app.post("/api/llm2audio")
 async def llm2audio(request: LLMRequest):
-    pass
+    if request.stream:
+        req_dict = request.model_dump()
+        req_dict["stream"] = False
+        request_non_stream = LLMRequest(**req_dict)
+    else:
+        request_non_stream = request
+
+    response = await _process_llm_inference(request_non_stream)
+    content = response.choices[0].message.content if response and response.choices else ""
+    if not content or not content.strip():
+        return JSONResponse(status_code=400, content={"detail": "LLM 返回内容为空，无法进行语音合成"})
+
+    tts_model = get_tts_model()
+    loop = asyncio.get_running_loop()
+    sentences, times, uuid = await loop.run_in_executor(
+        None,
+        _process_text2audio_task,
+        tts_model,
+        content,
+        TTSRequest.language,
+        TTSRequest.ref_audio,
+        TTSRequest.ref_text,
+    )
+
+    return {
+        "sentences": sentences,
+        "times": times,
+        "uuid": uuid,
+    }
 
 
 @app.post("/api/llm2avatar")

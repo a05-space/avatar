@@ -1,5 +1,6 @@
 id_idx: int = 0
 audio_sr: int = 16000
+batch_size: int = 4
 
 weight: str = "pretrained_models/avatar.tar"
 
