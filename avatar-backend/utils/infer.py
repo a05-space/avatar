@@ -212,15 +212,16 @@ def _process_text2audio_task(tts_model, text: str, language: str, ref_audio: str
         x_vector_only_mode=False,
     )
 
-    for i in range(len(sentences)):
+    for i in range(0, len(sentences), batch_size):
         wav, sr = tts_model.generate_voice_clone(
-            text=sentences[i],
-            language=language,
+            text=sentences[i:i+batch_size],
+            language=[language] * len(sentences[i:i+batch_size]),
             voice_clone_prompt=prompt_items,
         )
-        file_path = os.path.join(task_dir, f"{i}.wav")
-        sf.write(file_path, wav[0], sr, format='WAV')
-        times.append(len(wav[0]) / sr)
+        for j in range(len(wav)):
+            file_path = os.path.join(task_dir, f"{i+j}.wav")
+            sf.write(file_path, wav[j], sr, format='WAV')
+            times.append(len(wav[j]) / sr)
 
     del prompt_items
     torch.cuda.empty_cache()
