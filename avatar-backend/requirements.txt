@@ -1,0 +1,14 @@
+https://mirrors.aliyun.com/pytorch-wheels/cu130/torch-2.10.0+cu130-cp312-cp312-manylinux_2_28_x86_64.whl
+https://mirrors.aliyun.com/pytorch-wheels/cu130/torchaudio-2.10.0+cu130-cp312-cp312-manylinux_2_28_x86_64.whl
+openai
+sglang
+fastapi
+librosa
+uvicorn
+qwen_tts
+modelscope
+setuptools
+transformers
+python-multipart
+# flash-attention-2
+flash_attn-2.8.3+cu130torch2.10-cp312-cp312-linux_x86_64.whl

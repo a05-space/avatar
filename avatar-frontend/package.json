@@ -1,0 +1,20 @@
+{
+  "name": "avatar-frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "tslib": "^2.6.2",
+    "typescript": "^5.3.3",
+    "vite": "^7.3.1"
+  },
+  "dependencies": {
+    "clean": "^4.0.2",
+    "gaussian-splat-renderer-for-lam": "0.0.9-alpha.1"
+  }
+}
