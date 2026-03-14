@@ -11,6 +11,7 @@ if (container) {
 
   const audioInput = document.getElementById('audio-input') as HTMLInputElement | null;
   const uploadBtn = document.getElementById('upload-btn') as HTMLButtonElement | null;
+  const recordBtn = document.getElementById('record-btn') as HTMLButtonElement | null;
   const audioPlayer = document.getElementById('audio-player') as HTMLAudioElement | null;
   const textInput = document.getElementById('text-input') as HTMLInputElement | null;
   const ttsBtn = document.getElementById('text2audio-btn') as HTMLButtonElement | null;
