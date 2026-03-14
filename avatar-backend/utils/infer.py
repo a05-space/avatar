@@ -206,25 +206,19 @@ def _process_text2audio_task(tts_model, text: str, language: str, ref_audio: str
     task_dir = os.path.join(base_dir, task_id)
     os.makedirs(task_dir, exist_ok=True)
 
-    prompt_items = tts_model.create_voice_clone_prompt(
-        ref_audio=ref_audio,
-        ref_text=ref_text,
-        x_vector_only_mode=False,
-    )
-
+    # 这里不再直接依赖某个具体 TTS 模型，而是统一走 provider 抽象。
+    # 这样无论底层是本地 Qwen 还是阿里云 TTS，上层任务编排与文件输出逻辑都无需改动。
     for i in range(0, len(sentences), batch_size):
-        wav, sr = tts_model.generate_voice_clone(
-            text=sentences[i:i+batch_size],
-            language=[language] * len(sentences[i:i+batch_size]),
-            voice_clone_prompt=prompt_items,
+        wavs, sr = tts_model.synthesize_batch(
+            texts=sentences[i:i+batch_size],
+            language=language,
+            ref_audio=ref_audio,
+            ref_text=ref_text,
         )
-        for j in range(len(wav)):
+        for j in range(len(wavs)):
             file_path = os.path.join(task_dir, f"{i+j}.wav")
-            sf.write(file_path, wav[j], sr, format='WAV')
-            times.append(len(wav[j]) / sr)
-
-    del prompt_items
-    torch.cuda.empty_cache()
+            sf.write(file_path, wavs[j], sr, format='WAV')
+            times.append(len(wavs[j]) / sr)
 
     print(f"{time.time() - t_start:.6f}")
     return sentences, times, task_id
@@ -232,14 +226,12 @@ def _process_text2audio_task(tts_model, text: str, language: str, ref_audio: str
 
 def _process_text2avatar_task(tts_model, cfg, infer_engine, text: str, language: str, ref_audio: str, ref_text: str):
     t_start = time.time()
-    wavs, sr = tts_model.generate_voice_clone(
+    wav, sr = tts_model.synthesize_single(
         text=text,
         language=language,
         ref_audio=ref_audio,
         ref_text=ref_text,
     )
-    
-    wav = wavs[0]
 
     buffer = io.BytesIO()
     sf.write(buffer, wav, sr, format='WAV')

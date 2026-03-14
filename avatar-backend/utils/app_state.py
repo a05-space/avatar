@@ -1,10 +1,8 @@
 import runpy
-import torch
 import warnings
 
-from qwen_tts import Qwen3TTSModel
-
 from utils.infer import Audio2ExpressionInfer
+from utils.tts_providers import load_tts_provider
 
 
 _cfg = None
@@ -34,12 +32,9 @@ def load_config_and_model(config_path: str = "configs/config.py"):
     infer_engine = Audio2ExpressionInfer(cfg, verbose=False)
     infer_engine.model.eval()
 
-    tts_model = Qwen3TTSModel.from_pretrained(
-        "./Qwen3-TTS-12Hz-1.7B-Base",
-        device_map="cuda:0",
-        dtype=torch.bfloat16,
-        attn_implementation="flash_attention_2",
-    )
+    # TTS provider 支持通过环境变量切换。
+    # 默认值仍然是 qwen，因此不新增任何环境变量时，旧功能和旧行为都保持不变。
+    tts_model = load_tts_provider()
 
     _cfg = cfg
     _infer_engine = infer_engine

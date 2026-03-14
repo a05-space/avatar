@@ -6,3 +6,4 @@ __pycache__/
 
 test/
 Qwen3-TTS-12Hz-1.7B-Base/
+.env
