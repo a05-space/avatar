@@ -3,8 +3,12 @@
 .venv/
 .conda/
 __pycache__/
+.cache/
 
 test/
+audio/
+pretrained_models/
 Qwen3-TTS-12Hz-1.7B-Base/
 
 .env
+.env.docker

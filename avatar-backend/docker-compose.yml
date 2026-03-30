@@ -1,0 +1,40 @@
+version: "2.4"
+
+services:
+  avatar-backend:
+    container_name: avatar-backend
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APT_MIRROR: ${APT_MIRROR:-mirrors.aliyun.com}
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
+        PIP_TRUSTED_HOST: ${PIP_TRUSTED_HOST:-pypi.tuna.tsinghua.edu.cn}
+        FLASH_ATTN_WHEEL_URL: ${FLASH_ATTN_WHEEL_URL:-}
+    env_file:
+      - .env.docker
+    environment:
+      PORT: ${PORT:-8109}
+      HF_ENDPOINT: ${HF_ENDPOINT:-https://hf-mirror.com}
+      HF_HOME: /app/.cache/huggingface
+      TRANSFORMERS_CACHE: /app/.cache/huggingface
+      MODELSCOPE_CACHE: /app/.cache/modelscope
+      NVIDIA_VISIBLE_DEVICES: ${NVIDIA_VISIBLE_DEVICES:-all}
+      NVIDIA_DRIVER_CAPABILITIES: ${NVIDIA_DRIVER_CAPABILITIES:-compute,utility}
+    ports:
+      - "${PORT:-8109}:8109"
+    volumes:
+      - ./audio:/app/audio
+      - ./pretrained_models:/app/pretrained_models:ro
+      - ./Qwen3-TTS-12Hz-1.7B-Base:/app/Qwen3-TTS-12Hz-1.7B-Base:ro
+      - ./.cache/huggingface:/app/.cache/huggingface
+      - ./.cache/modelscope:/app/.cache/modelscope
+    shm_size: "2gb"
+    restart: unless-stopped
+    runtime: nvidia
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8109/healthz', timeout=5).read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
