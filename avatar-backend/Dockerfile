@@ -1,15 +1,17 @@
-FROM nvidia/cuda:13.0.0-cudnn-runtime-ubuntu24.04
+# syntax=docker/dockerfile:1.7
+FROM nvidia/cuda:12.9.0-cudnn-runtime-ubuntu24.04
 
 ARG APT_MIRROR=mirrors.aliyun.com
-ARG PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
-ARG PIP_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn
+ARG PIP_INDEX_URL=https://pypi.org/simple
+ARG PIP_TRUSTED_HOST=
 ARG FLASH_ATTN_WHEEL_URL=
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PIP_NO_CACHE_DIR=1 \
+    VIRTUAL_ENV=/opt/venv \
+    PATH=/opt/venv/bin:$PATH \
     HF_ENDPOINT=https://hf-mirror.com \
     HF_HOME=/app/.cache/huggingface \
     TRANSFORMERS_CACHE=/app/.cache/huggingface \
@@ -33,21 +35,24 @@ RUN set -eux; \
         python3 \
         python3-pip \
         python3-venv; \
-    ln -sf /usr/bin/python3 /usr/local/bin/python; \
-    ln -sf /usr/bin/pip3 /usr/local/bin/pip; \
+    python3 -m venv "${VIRTUAL_ENV}"; \
     rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /root/.pip && \
-    printf "[global]\nindex-url = %s\ntrusted-host = %s\n" "${PIP_INDEX_URL}" "${PIP_TRUSTED_HOST}" > /root/.pip/pip.conf
+    printf "[global]\nindex-url = %s\ndefault-timeout = 100\nretries = 10\n" "${PIP_INDEX_URL}" > /root/.pip/pip.conf && \
+    if [ -n "${PIP_TRUSTED_HOST}" ]; then \
+        printf "trusted-host = %s\n" "${PIP_TRUSTED_HOST}" >> /root/.pip/pip.conf; \
+    fi
 
 COPY requirements.txt ./requirements.txt
 
-RUN set -eux; \
-    grep -vE '^flash_attn-.*\.whl$' requirements.txt > /tmp/requirements.docker.txt; \
-    python -m pip install --upgrade pip setuptools wheel; \
-    python -m pip install -r /tmp/requirements.docker.txt; \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    set -eux; \
+    tr -d '\r' < requirements.txt | grep -vE '^(flash[_-]attn-.*\.whl|# flash-attention-2)$' > /tmp/requirements.docker.txt; \
+    "${VIRTUAL_ENV}/bin/python" -m pip install --upgrade pip setuptools wheel; \
+    "${VIRTUAL_ENV}/bin/python" -m pip install -r /tmp/requirements.docker.txt; \
     if [ -n "${FLASH_ATTN_WHEEL_URL}" ]; then \
-        python -m pip install "${FLASH_ATTN_WHEEL_URL}"; \
+        "${VIRTUAL_ENV}/bin/python" -m pip install "${FLASH_ATTN_WHEEL_URL}"; \
     else \
         echo "FLASH_ATTN_WHEEL_URL is empty, skip flash-attn wheel install."; \
     fi

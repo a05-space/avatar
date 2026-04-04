@@ -1,8 +1,13 @@
-https://mirrors.aliyun.com/pytorch-wheels/cu130/torch-2.10.0+cu130-cp312-cp312-manylinux_2_28_x86_64.whl
-https://mirrors.aliyun.com/pytorch-wheels/cu130/torchaudio-2.10.0+cu130-cp312-cp312-manylinux_2_28_x86_64.whl
+--extra-index-url https://download.pytorch.org/whl/cu128
+torch==2.10.0+cu128
+torchaudio==2.10.0+cu128
 openai
 sglang
 fastapi
+python-dotenv
+numpy
+scipy
+soundfile
 librosa
 uvicorn
 qwen_tts
@@ -11,4 +16,4 @@ setuptools
 transformers
 python-multipart
 # flash-attention-2
-flash_attn-2.8.3+cu130torch2.10-cp312-cp312-linux_x86_64.whl
+# Optional: provide a CUDA 12.x compatible wheel through FLASH_ATTN_WHEEL_URL at build time.
