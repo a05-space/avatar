@@ -1,7 +1,7 @@
 import { GaussianAvatar } from './gaussianAvatar';
 
 const container = document.getElementById('WebRender') as HTMLDivElement | null;
-const assetPath = './asset/arkit/default.zip';
+const assetPath = './asset/arkit/cxliu.zip';
 
 if (container) {
   const gaussianAvatar = new GaussianAvatar(container, assetPath);
