@@ -19,13 +19,17 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 WORKDIR /app
 
-RUN set -eux; \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+    set -eux; \
     if [ -f /etc/apt/sources.list ]; then \
         sed -i "s|http://archive.ubuntu.com/ubuntu/|https://${APT_MIRROR}/ubuntu/|g; s|http://security.ubuntu.com/ubuntu/|https://${APT_MIRROR}/ubuntu/|g" /etc/apt/sources.list; \
     fi; \
     if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then \
         sed -i "s|http://archive.ubuntu.com/ubuntu/|https://${APT_MIRROR}/ubuntu/|g; s|http://security.ubuntu.com/ubuntu/|https://${APT_MIRROR}/ubuntu/|g" /etc/apt/sources.list.d/ubuntu.sources; \
     fi; \
+    rm -f /etc/apt/apt.conf.d/docker-clean; \
+    printf 'Binary::apt::APT::Keep-Downloaded-Packages "true";\n' > /etc/apt/apt.conf.d/keep-cache; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
         ca-certificates \
@@ -35,8 +39,7 @@ RUN set -eux; \
         python3 \
         python3-pip \
         python3-venv; \
-    python3 -m venv "${VIRTUAL_ENV}"; \
-    rm -rf /var/lib/apt/lists/*
+    python3 -m venv "${VIRTUAL_ENV}"
 
 RUN mkdir -p /root/.pip && \
     printf "[global]\nindex-url = %s\ndefault-timeout = 100\nretries = 10\n" "${PIP_INDEX_URL}" > /root/.pip/pip.conf && \
@@ -48,9 +51,25 @@ COPY requirements.txt ./requirements.txt
 
 RUN --mount=type=cache,target=/root/.cache/pip \
     set -eux; \
-    tr -d '\r' < requirements.txt | grep -vE '^(flash[_-]attn-.*\.whl|# flash-attention-2)$' > /tmp/requirements.docker.txt; \
-    "${VIRTUAL_ENV}/bin/python" -m pip install --upgrade pip setuptools wheel; \
-    "${VIRTUAL_ENV}/bin/python" -m pip install -r /tmp/requirements.docker.txt; \
+    retry() { \
+        n=0; \
+        until "$@"; do \
+            n=$((n + 1)); \
+            if [ "$n" -ge 3 ]; then \
+                return 1; \
+            fi; \
+            echo "Command failed. Retry $n/2 after backoff..."; \
+            sleep $((n * 5)); \
+        done; \
+    }; \
+    tr -d '\r' < requirements.txt | grep -E '^(--extra-index-url|torch==|torchaudio==)' > /tmp/requirements.torch.txt; \
+    tr -d '\r' < requirements.txt | grep -vE '^(--extra-index-url|torch==|torchaudio==|flash[_-]attn-.*\.whl|# flash-attention-2)$' > /tmp/requirements.docker.txt; \
+    echo "Installing packaging toolchain..."; \
+    retry "${VIRTUAL_ENV}/bin/python" -m pip install --upgrade pip setuptools wheel; \
+    echo "Installing torch packages from PyTorch index..."; \
+    retry "${VIRTUAL_ENV}/bin/python" -m pip install -r /tmp/requirements.torch.txt; \
+    echo "Installing remaining Python dependencies..."; \
+    retry "${VIRTUAL_ENV}/bin/python" -m pip install -r /tmp/requirements.docker.txt; \
     if [ -n "${FLASH_ATTN_WHEEL_URL}" ]; then \
         "${VIRTUAL_ENV}/bin/python" -m pip install "${FLASH_ATTN_WHEEL_URL}"; \
     else \
