@@ -1,0 +1,45 @@
+# syntax=docker/dockerfile:1.7
+FROM nvidia/cuda:12.9.0-cudnn-runtime-ubuntu24.04
+
+ARG APT_MIRROR=mirrors.aliyun.com
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    VIRTUAL_ENV=/opt/venv \
+    PATH=/opt/venv/bin:$PATH \
+    HF_ENDPOINT=https://hf-mirror.com \
+    HF_HOME=/app/.cache/huggingface \
+    TRANSFORMERS_CACHE=/app/.cache/huggingface \
+    MODELSCOPE_CACHE=/app/.cache/modelscope
+
+WORKDIR /app
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+    set -eux; \
+    if [ -f /etc/apt/sources.list ]; then \
+        sed -i "s|http://archive.ubuntu.com/ubuntu/|https://${APT_MIRROR}/ubuntu/|g; s|http://security.ubuntu.com/ubuntu/|https://${APT_MIRROR}/ubuntu/|g" /etc/apt/sources.list; \
+    fi; \
+    if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then \
+        sed -i "s|http://archive.ubuntu.com/ubuntu/|https://${APT_MIRROR}/ubuntu/|g; s|http://security.ubuntu.com/ubuntu/|https://${APT_MIRROR}/ubuntu/|g" /etc/apt/sources.list.d/ubuntu.sources; \
+    fi; \
+    rm -f /etc/apt/apt.conf.d/docker-clean; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        ffmpeg \
+        libgomp1 \
+        libsndfile1 \
+        python3 \
+        python3-pip \
+        python3-venv; \
+    python3 -m venv "${VIRTUAL_ENV}"; \
+    mkdir -p /app/audio /app/.cache/huggingface /app/.cache/modelscope
+
+# Source and requirements are installed from the bind mount at container start.
+# The virtualenv and pip cache live in Docker volumes so the host tree stays clean.
+EXPOSE 8109
+
+CMD ["/app/docker-entrypoint.sh"]
